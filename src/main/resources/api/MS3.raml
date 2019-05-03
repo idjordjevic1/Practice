@@ -1,0 +1,53 @@
+#%RAML 0.8
+title: MS3 API
+version: 1.0
+baseUri: http://localhost/MS3/api/
+/identification/1.0:
+  displayName: /identification/1.0
+  description: API that returns json formatted indentification
+  get:
+    queryParameters:
+      firstname:
+        description: first name passed by the end user
+        example: Bob
+        required: true
+    responses:
+      200:
+        body:
+          application/json:
+            example: |
+                      [
+                        {
+                            "Identification": {
+                            "FirstName": "Bob",
+                            "LastName": "Frederick",
+                            "DOB": "06/21/1980",
+                            "Gender": "M",
+                            "Title": "Manager"
+                        },
+                            "Address": [{
+                            "type ": "home",
+                            "number": 1234,
+                            "street": "blah blah St",
+                            "Unit": "1 a",
+                            "City": "Somewhere",
+                            "State": "WV",
+                            "zipcode": "12345"
+                        }],
+                            "Communication": [{
+                            "type": "email",
+                            "value": "bfe@sample.com",
+                            "preferred" : "true"
+                        },
+                        {
+                            "type": "cell",
+                            "value": "304-555-8282"
+                        }
+                        ]
+                        }
+                      ] 
+      400:
+        body:
+          application/json:
+            example: |
+              {"Message": "Bad request"}
