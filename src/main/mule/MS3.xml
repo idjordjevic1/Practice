@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd 
+<mule xmlns:validation="http://www.mulesoft.org/schema/mule/validation" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd 
 http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
-http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mule/validation/current/mule-validation.xsd">
     <http:listener-config name="MS3-httpListenerConfig">
         <http:listener-connection host="0.0.0.0" port="8081" />
     </http:listener-config>
@@ -13,6 +14,7 @@ http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/
 			</db:connection-properties>
 		</db:mssql-connection>
 	</db:config>
+	<validation:config name="Validation_Config" doc:name="Validation Config" doc:id="60cd3c04-595c-454e-a1f7-aedac0dcf70c" />
 	<flow name="MS3-main">
         <http:listener config-ref="MS3-httpListenerConfig" path="/api/*">
             <http:response statusCode="#[vars.httpStatus default 200]">
@@ -24,7 +26,7 @@ http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/
             </http:error-response>
         </http:listener>
         <apikit:router config-ref="MS3-config" />
-        <error-handler>
+		<error-handler>
             <on-error-propagate type="APIKIT:BAD_REQUEST">
                 <ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd" doc:id="691c9cb0-2ef3-47ee-b6ca-71457db89050">
                     <ee:message>
@@ -103,6 +105,16 @@ output application/json
                     </ee:variables>
                 </ee:transform>
             </on-error-propagate>
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="4a039e66-cf13-498b-81c5-d84340139b07" type="ANY">
+				<ee:transform doc:name="Transform Message" doc:id="f783bc86-6ebd-4bff-a316-76f9c2824275" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{message: error.exception.message}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-propagate>
         </error-handler>
     </flow>
     <flow name="MS3-console">
@@ -135,6 +147,7 @@ output application/json
     <flow name="get:\identification\1.0:MS3-config">
         <logger level="INFO" doc:name="Logger" doc:id="d7f26004-421c-4de9-87fb-8450b9d245b1" message="START"/>
 		<set-variable value="#[message.attributes.queryParams.IdentificationID]" doc:name="Set Variable IdentificationID" doc:id="37d98e07-5da9-4453-90fe-c9527117c49e" variableName="IdentificationID"/>
+		<validation:is-number numberType="INTEGER" doc:name="Is number" doc:id="61d14a39-dc1b-4d90-b5fd-ba7fe354fb2c" config-ref="Validation_Config" value="#[vars.IdentificationID]" message="Input Parameter is not a valid number"/>
 		<db:select doc:name="Select" doc:id="232ff275-1609-4e33-a652-4b65ea7c42b3" config-ref="Database_Config">
 			<db:sql >select FirstName, LastName, DOB, Gender, Title from [dbo].[Identification] with(nolock)
 where IdentificationID = :id</db:sql>
@@ -213,6 +226,11 @@ output application/json
 	}
 }]]></ee:set-payload>
 			</ee:message>
-		</ee:transform>	
+		</ee:transform>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="2a804f52-4ac0-4f16-a476-f02edb699dc2" type="DB:QUERY_EXECUTION, VALIDATION:INVALID_NUMBER">
+				<logger level="INFO" doc:name="Logger" doc:id="47038cac-16b9-495a-9023-16e751ca19bc" message="#[error.exception.message]"/>
+			</on-error-propagate>
+		</error-handler>	
     </flow>
 </mule>
