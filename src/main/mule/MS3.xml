@@ -1,10 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<mule xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd ">
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd 
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
     <http:listener-config name="MS3-httpListenerConfig">
         <http:listener-connection host="0.0.0.0" port="8081" />
     </http:listener-config>
     <apikit:config name="MS3-config" raml="MS3.raml" outboundHeadersMapName="outboundHeaders" httpStatusVarName="httpStatus" />
-    <flow name="MS3-main">
+    <db:config name="Database_Config" doc:name="Database Config" doc:id="06b25a19-b7bd-4bf0-bf6b-09824cdeb8b9" >
+		<db:mssql-connection host="SDBMOTODV-MTS01" databaseName="MS3" >
+			<db:connection-properties >
+				<db:connection-property key="integratedSecurity" value="true" />
+			</db:connection-properties>
+		</db:mssql-connection>
+	</db:config>
+	<flow name="MS3-main">
         <http:listener config-ref="MS3-httpListenerConfig" path="/api/*">
             <http:response statusCode="#[vars.httpStatus default 200]">
                 <http:headers>#[vars.outboundHeaders default {}]</http:headers>
@@ -124,45 +133,86 @@ output application/json
         </error-handler>
     </flow>
     <flow name="get:\identification\1.0:MS3-config">
-        <ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd" doc:id="a45ed3f7-3afe-4f41-8f0f-a803609d8e93">
-            <ee:message>
-                <ee:set-payload><![CDATA[%dw 2.0
+        <logger level="INFO" doc:name="Logger" doc:id="d7f26004-421c-4de9-87fb-8450b9d245b1" message="START"/>
+		<set-variable value="#[message.attributes.queryParams.IdentificationID]" doc:name="Set Variable IdentificationID" doc:id="37d98e07-5da9-4453-90fe-c9527117c49e" variableName="IdentificationID"/>
+		<db:select doc:name="Select" doc:id="232ff275-1609-4e33-a652-4b65ea7c42b3" config-ref="Database_Config">
+			<db:sql >select FirstName, LastName, DOB, Gender, Title from [dbo].[Identification] with(nolock)
+where IdentificationID = :id</db:sql>
+			<db:input-parameters ><![CDATA[#[{'id' : vars.IdentificationID}]]]></db:input-parameters>
+		</db:select>
+		<ee:transform doc:name="Transform Message" doc:id="9e8b203e-7b2d-446d-bf43-1f382335562e" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+payload]]></ee:set-payload>
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="Identification" ><![CDATA[%dw 2.0
+output application/java
+---
+payload]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<db:select doc:name="Select" doc:id="5117f8db-b82d-4dd5-bb43-66d39d3cc03b" config-ref="Database_Config">
+			<db:sql >select [type], number, street, Unit, [State], zipcode from [dbo].[Address] with(nolock)
+where IdentificationID = :id</db:sql>
+			<db:input-parameters ><![CDATA[#[{'id' : vars.IdentificationID}]]]></db:input-parameters>
+		</db:select>
+		<ee:transform doc:name="Transform Message" doc:id="b21038a3-8d3f-4e1c-9cf9-7bd530292439" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+payload]]></ee:set-payload>
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="Address" ><![CDATA[%dw 2.0
+output application/java
+---
+payload]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<db:select doc:name="Select" doc:id="4bd29a84-a35d-437a-8435-e1dbf2972e83" config-ref="Database_Config">
+			<db:sql >select [type], [value], preferred from [dbo].[Communication] with(nolock)
+where IdentificationID = :id</db:sql>
+			<db:input-parameters ><![CDATA[#[{'id' : vars.IdentificationID}]]]></db:input-parameters>
+		</db:select>
+		<ee:transform doc:name="Transform Message" doc:id="63708106-1cef-4328-8032-879d8e355f45" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+payload]]></ee:set-payload>
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="Communication" ><![CDATA[%dw 2.0
+output application/java
+---
+payload]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<ee:transform doc:name="Transform Message" doc:id="1ea129d3-7234-4011-964a-f9e71a8a9b51" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
 output application/json
 ---
-[
-  {
-    Identification: {
-      FirstName: "Bob",
-      LastName: "Frederick",
-      DOB: "06/21/1980",
-      Gender: "M",
-      Title: "Manager"
-    },
-    Address: [
-      {
-        "type ": "home",
-        number: 1234,
-        street: "blah blah St",
-        Unit: "1 a",
-        City: "Somewhere",
-        State: "WV",
-        zipcode: "12345"
-      }
-    ],
-    Communication: [
-      {
-        "type": "email",
-        value: "bfe@sample.com",
-        preferred: "true"
-      }, 
-      {
-        "type": "cell",
-        value: "304-555-8282"
-      }
-    ]
-  }
-]]]></ee:set-payload>
-            </ee:message>
-        </ee:transform>
+{
+	Identification: vars.Identification[0],
+	Address: vars.Address map ( address , indexOfAddress ) -> {
+		number: address.number as Number default 0,
+		street: address.street default "",
+		Unit: address.Unit default "",
+		State: address.State default "",
+		zipcode: address.zipcode default ""
+	},
+	Communication: vars.Communication map ( communication , indexOfCommunication ) -> {
+		"type": communication."type",
+		value: communication.value default "",
+		preferred: communication.preferred default ""
+	}
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>	
     </flow>
 </mule>

@@ -24,14 +24,20 @@
 				<artifactId>mule-maven-plugin</artifactId>
 				<version>${mule.maven.plugin.version}</version>
 				<extensions>true</extensions>
-				<configuration>
-				</configuration>
-			</plugin>
+			<configuration>
+                    <sharedLibraries>
+                        <sharedLibrary>
+                            <groupId>com.microsoft.sqlserver</groupId>
+                            <artifactId>mssql-jdbc</artifactId>
+                        </sharedLibrary>
+                    </sharedLibraries>
+                </configuration>
+            </plugin>
 		</plugins>
 	</build>
 
 	<dependencies>
-        <dependency>
+		<dependency>
             <groupId>org.mule.connectors</groupId>
             <artifactId>mule-http-connector</artifactId>
             <version>1.3.2</version>
@@ -49,6 +55,24 @@
             <version>1.1.9</version>
             <classifier>mule-plugin</classifier>
         </dependency>
+    	<dependency>
+            <groupId>org.mule.connectors</groupId>
+            <artifactId>mule-db-connector</artifactId>
+            <version>1.4.0</version>
+            <classifier>mule-plugin</classifier>
+        </dependency>
+    	<dependency>
+            <groupId>com.microsoft.sqlserver</groupId>
+            <artifactId>mssql-jdbc</artifactId>
+            <version>6.4.0.jre8</version>
+        </dependency>
+<!-- DRIVER DLL DEPENDENCY --> 
+		<dependency> 
+    		<groupId>com.microsoft.sqlserver</groupId> 
+    		<artifactId>sqljdbc_auth</artifactId> 
+    		<version>0.1</version> 
+    		<type>dll</type> 
+		</dependency>        
     </dependencies>
 
 	<repositories>
